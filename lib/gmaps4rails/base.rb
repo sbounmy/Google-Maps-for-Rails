@@ -4,7 +4,7 @@ require 'crack'
 
 module Gmaps4rails
   DEFAULT_MAP_ID     = "map"
-  
+
   class GeocodeStatus < StandardError; end
   class GeocodeNetStatus < StandardError; end
   class GeocodeInvalidQuery < StandardError; end
@@ -13,8 +13,8 @@ module Gmaps4rails
   class DirectionInvalidQuery < StandardError; end
 
   # Creates the json related to one Object (only tried ActiveRecord objects)
-  # This json will contian the marker's attributes of the object 
- mattr_accessor :json_from_block 
+  # This json will contian the marker's attributes of the object
+ mattr_accessor :json_from_block
 
  def Gmaps4rails.create_json(object, &block)
    @json_from_block = String.new
@@ -22,31 +22,31 @@ module Gmaps4rails
      Gmaps4rails.block_handling(object, &block)
 "{#{description(object)}#{get_title(object)}#{get_sidebar(object)}#{marker_picture(object)}#{@json_from_block}\"lng\": \"#{object.send(object.gmaps4rails_options[:lng_column])}\", \"lat\": \"#{object.send(object.gmaps4rails_options[:lat_column])}\"},\n"
    end
- end  
+ end
 
   # execute block if provided so that it's included in the json string
   def Gmaps4rails.block_handling(object, &block)
      block_result = yield(object, ::Gmaps4rails) if block_given?
      Gmaps4rails.json(block_result) if block_result.is_a? String
   end
-  
+
   def Gmaps4rails.json(string)
     @json_from_block << "#{gsub_string(string)}, "
     return true
   end
-  
+
   ################################################
   # in use to create json from model
   def Gmaps4rails.marker_picture(object)
     create_js_for_picture object.gmaps4rails_marker_picture if object.respond_to?("gmaps4rails_marker_picture")
   end
-  
+
   # in use in block
   def Gmaps4rails.picture(hash)
     @json_from_block << (create_js_for_picture hash)
     return true
   end
-  
+
   # Returns picture js from a hash
   def Gmaps4rails.create_js_for_picture(raw_hash)
     hash = raw_hash.with_indifferent_access
@@ -65,12 +65,12 @@ module Gmaps4rails
     @json_from_block << (create_js_for_infowindow string)
     return true
   end
-  
+
   # in use to create json from model
   def Gmaps4rails.description(object)
     create_js_for_infowindow object.gmaps4rails_infowindow if object.respond_to?("gmaps4rails_infowindow")
   end
-  
+
   def Gmaps4rails.create_js_for_infowindow(string)
     "\"description\": \"#{gsub_string(string)}\", "
   end
@@ -85,18 +85,18 @@ module Gmaps4rails
   def Gmaps4rails.get_title(object)
     create_js_for_title object.gmaps4rails_title if object.respond_to?("gmaps4rails_title")
   end
-  
+
   def Gmaps4rails.create_js_for_title(string)
     "\"title\": \"#{gsub_string(string)}\", "
   end
   ##################################################
 
-  # in use in block  
+  # in use in block
   def Gmaps4rails.sidebar(string)
     create_js_for_sidebar string
-  end 
-  
-  # in use to create json from model  
+  end
+
+  # in use to create json from model
   def Gmaps4rails.get_sidebar(object)
     create_js_for_sidebar object.gmaps4rails_sidebar if object.respond_to?("gmaps4rails_sidebar")
   end
@@ -106,11 +106,11 @@ module Gmaps4rails
   end
   ##################################################
 
-  
+
   def Gmaps4rails.gsub_string(string)
     string   #you could do override with something like: string.gsub(/\n/, '').gsub(/"/, '\"')
   end
-  
+
   # This method geocodes an address using the GoogleMaps webservice
   # options are:
   # * address: string, mandatory
@@ -128,7 +128,7 @@ module Gmaps4rails
      Gmaps4rails.handle_geocoding_response(request, Net::HTTP.get_response(URI.parse(url)), raw)
    end # end address valid
   end
-  
+
   # This method retrieves destination results provided by GoogleMaps webservice
   # options are:
   # * start_end: Hash { "from" => string, "to" => string}, mandatory
@@ -141,24 +141,24 @@ module Gmaps4rails
    else #great, we have stuff to work with
      geocoder = "http://maps.googleapis.com/maps/api/directions/json?origin=#{start_end["from"]}&destination=#{start_end["to"]}"
      #if value is an Array, it means it contains the waypoints, otherwise it's chained normally
-     dest_options = options.empty? ? "" : "&" + options.map {|k,v| v.is_a?(Array) ? k + "=" + v * ("|") : k + "=" + v }*("&") 
+     dest_options = options.empty? ? "" : "&" + options.map {|k,v| v.is_a?(Array) ? k + "=" + v * ("|") : k + "=" + v }*("&")
      #send request to the google api to get the directions
      request = geocoder + dest_options + "&sensor=false"
      url = URI.escape(request)
      Gmaps4rails.handle_destination_response(request, Net::HTTP.get_response(URI.parse(url)), output)
    end # end origin + destination exist
   end #end destination
-  
+
   # To create valid js, this method escapes everything but Numeric, true or false
   def Gmaps4rails.filter(data)
     data.to_json
   end
-  
+
   private
-  
+
   def Gmaps4rails.handle_geocoding_response(request, response, raw)
     #parse result if result received properly
-    if response.is_a?(Net::HTTPSuccess)             
+    if response.is_a?(Net::HTTPSuccess)
       #parse the json
       parse = Crack::JSON.parse(response.body)
       #check if google went well
@@ -166,8 +166,8 @@ module Gmaps4rails
         return parse if raw == true
         array = []
         parse["results"].each do |result|
-          array << { 
-                     :lat => result["geometry"]["location"]["lat"], 
+          array << {
+                     :lat => result["geometry"]["location"]["lat"],
                      :lng => result["geometry"]["location"]["lng"],
                      :matched_address => result["formatted_address"],
                      :bounds => result["geometry"]["bounds"],
@@ -179,17 +179,17 @@ module Gmaps4rails
         raise Gmaps4rails::GeocodeStatus, "The address you passed seems invalid, status was: #{parse["status"]}.
         Request was: #{request}"
       end #end parse status
-      
+
     else #if not http success
       raise Gmaps4rails::GeocodeNetStatus, "The request sent to google was invalid (not http success): #{request}.
-      Response was: #{response}"           
+      Response was: #{response}"
     end #end resp test
   end
-  
+
   def Gmaps4rails.handle_destination_response(request, response, output)
-    if response.is_a?(Net::HTTPSuccess)             
+    if response.is_a?(Net::HTTPSuccess)
       #parse the json
-      parse = Crack::JSON.parse(response.body)
+      parse = JSON.parse(response.body)
       #check if google went well
       if parse["status"] == "OK"
        legs = []
@@ -218,30 +218,30 @@ module Gmaps4rails
       end #end parse status
     else #if not http success
       raise Gmaps4rails::DirectionNetStatus, "The request sent to google was invalid (not http success): #{request}.
-      Response was: #{response}"           
+      Response was: #{response}"
     end #end resp test
   end
-  
+
   ###### JS CREATION #######
-  
+
   def Gmaps4rails.js_function_name(hash)
     "load_" + Gmaps4rails.get_map_id(hash[:map_options])
   end
-  
+
   def Gmaps4rails.get_map_id(hash)
     hash.nil? || hash[:id].nil? ? DEFAULT_MAP_ID : hash[:id]
   end
-  
+
   def Gmaps4rails.get_constructor(hash)
     hash.nil? || hash[:provider].nil? ? "Gmaps4RailsGoogle()" : "Gmaps4Rails#{hash[:provider].capitalize}()"
   end
-  
+
   def Gmaps4rails.create_map_js(map_hash, map_id)
     output = Array.new
     skipped_keys = [:class, :container_class]
     map_hash.each do |option_k, option_v|
       unless skipped_keys.include? option_k.to_sym
-        case option_k.to_sym 
+        case option_k.to_sym
         when :bounds, :raw #particular case, render the content unescaped
           output << "#{map_id}.map_options.#{option_k} = #{option_v};"
         else
@@ -251,7 +251,7 @@ module Gmaps4rails
     end
     output
   end
-  
+
   def Gmaps4rails.create_general_js(hash, map_id, category)
     hash = hash.with_indifferent_access
     output = Array.new
@@ -262,19 +262,19 @@ module Gmaps4rails
         output << "#{map_id}.#{category}_conf.#{option_k} = #{option_v};"
       else
         output << "#{map_id}.#{category}_conf.#{option_k} = #{Gmaps4rails.filter option_v};"
-      end	
+      end
     end
     output << "#{map_id}.create_#{category}();"
     output
   end
-  
+
   def Gmaps4rails.create_direction_js(hash, map_id)
     hash = hash.with_indifferent_access
     output = Array.new
     output << "#{map_id}.direction_conf.origin = '#{hash["data"]["from"]}';"
     output << "#{map_id}.direction_conf.destination = '#{hash["data"]["to"]}';"
     hash[:options] ||= Array.new
-	  hash[:options].each do |option_k, option_v|
+    hash[:options].each do |option_k, option_v|
       if option_k.to_sym == :waypoints
         waypoints = Array.new
         option_v.each do |waypoint|
@@ -288,10 +288,10 @@ module Gmaps4rails
     output << "#{map_id}.create_direction();"
     output
   end
-  
+
   def Gmaps4rails.create_js_from_hash(hash)
     #the variable 'options' must have the following structure
-    #{  
+    #{
     #   :map_options => hash,
     #   :markers     => { :data => json, :options => hash },
     #   :polylines   => { :data => json, :options => hash },
@@ -308,25 +308,25 @@ module Gmaps4rails
     result << "Gmaps.#{Gmaps4rails.js_function_name hash } = function() {"
     result << Gmaps4rails.create_map_js(hash[:map_options], map_id) unless hash[:map_options].nil?
     result << "#{map_id}.initialize();"
-    
+
     hash.each do |category, content| #loop through options hash
       skipped_categories = [:map_options, :last_map, :scripts]
       unless skipped_categories.include? category.to_sym
         if category.to_sym == :direction
           result << Gmaps4rails.create_direction_js(content, map_id)
-        else  
+        else
           result << Gmaps4rails.create_general_js(content, map_id, category)
         end
       end
     end
     result << "#{map_id}.adjustMapToBounds();"
     result << "#{map_id}.callback();"
-    
+
     result << "};"
     if hash[:last_map].nil? || hash[:last_map] == true
       result << "window.onload = function() { Gmaps.loadMaps(); };"
     end
-    
+
     result * ('
 ')
   end
